@@ -1,3 +1,4 @@
+import exceptions.IllegalArraySizeException;
 import exceptions.IllegalIntervalException;
 
 import java.util.Arrays;
@@ -18,23 +19,35 @@ public class SegmentTree<T> {
     public SegmentTree(int left, int right, T[] leaves, TreeOperation<T> operation) {
         if(right > left) throw new IllegalIntervalException(left, right);
 
+        final int segmLen = right - left + 1;
+
         if(leaves.length == 1 && left != right) {
             final T initVal = leaves[0];
-            leaves = (T[]) new Object[right - left + 1];
+            leaves = (T[]) new Object[segmLen];
             Arrays.fill(leaves, initVal);
-        }
+        } else if(leaves.length != segmLen)
+            throw new IllegalArraySizeException(leaves.length, segmLen);
 
         this.offset = left;
         this.operation = operation;
 
-        this.height = (int) Math.ceil(Math.log10(right - left + 1) / Math.log10(2));
+        this.height = (int) Math.ceil(Math.log10(segmLen) / Math.log10(2));
 
         this.tree = new Segment[(int) Math.pow(2, this.height + 1)];
-        this.leaves = new Segment[right - left + 1];
+        this.leaves = new Segment[segmLen];
 
         build(leaves, 1, left, right);
     }
 
+    /**
+     * Builds a new segment tree
+     *
+     * @param leaves values with which the according leaf is initialized
+     * @param ind position of the current interval in the tree
+     * @param left lower bound for current interval
+     * @param right upper bound for current interval
+     * @return value to be set in the parent node
+     */
     private T build(final T[] leaves, int ind, int left, int right) {
         final Segment<T> curr = this.tree[ind] = new Segment<>(left, right);
 
@@ -51,6 +64,10 @@ public class SegmentTree<T> {
 
         curr.setValue(operation.accept(res1, res2));
         return curr.getValue();
+    }
+
+    public Segment<T>[] getLeaves() {
+        return leaves;
     }
 
     public void setOperation(TreeOperation<T> operation) {
