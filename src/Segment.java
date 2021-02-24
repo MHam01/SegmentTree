@@ -1,11 +1,19 @@
 public class Segment<T> {
-    private final int LEFT, RIGHT;
+    private final int left, right;
 
     private T value;
 
     public Segment(int left, int right) {
-        this.LEFT = left;
-        this.RIGHT = right;
+        this.left = left;
+        this.right = right;
+    }
+
+    public int getLowerBound() {
+        return left;
+    }
+
+    public int getUpperBound() {
+        return right;
     }
 
     public T getValue() {
