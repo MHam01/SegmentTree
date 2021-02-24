@@ -117,7 +117,45 @@ public class SegmentTree<T> {
     }
 
     /**
+     * Perform changes to a given range given the specified operation.
+     * Operates in O(log n) time.
+     *
+     * @param left Lower bound for the change
+     * @param right Upper bound for the change
+     * @param value Value to be passed down the tree to all leaf nodes in the range
+     */
+    public void rangeChg(int left, int right, T value) {
+        rangeChg(left, right, value, 1);
+    }
+
+    /**
+     * Auxiliary method to traverse the tree.
+     *
+     * @param left Lower bound for the change
+     * @param right Upper bound for the change
+     * @param value Value to be passed down the tree to all leaf nodes in the range
+     * @param ind Position of the current segment in the tree
+     */
+    private void rangeChg(int left, int right, T value, int ind) {
+        final Segment<T> curr = this.tree[ind];
+
+        if(left > curr.getUpperBound() || curr.getLowerBound() > right)
+            return;
+
+        if(left <= curr.getLowerBound() && right >= curr.getUpperBound()) {
+            curr.updateLazy(value, this.operation);
+            propagate(ind);
+        } else if(curr.getLowerBound() != curr.getUpperBound()) {
+            rangeChg(left, right, value, 2 * ind);
+            rangeChg(left, right, value, 2 * ind + 1);
+
+            curr.setValue(this.operation.accept(this.tree[2 * ind].getValue(), this.tree[2 * ind + 1].getValue()));
+        }
+    }
+
+    /**
      * Queries values in a given range using default operation of the tree.
+     * Operates in O(log n) time.
      *
      * @param left Lower bound for the lookup
      * @param right Upper bound for the lookup
@@ -129,21 +167,33 @@ public class SegmentTree<T> {
 
     /**
      * Queries values in a given range.
+     * Operates in O(log n) time.
      *
      * @param left Lower bound for the lookup
      * @param right Upper bound for the lookup
-     * @param queryOp Operation used when combining values from different segments.
+     * @param queryOp Operation used when combining values from different segments
      * @return Empty if bounds are out of range, computed value otherwise
      */
     public Optional<T> query(int left, int right, TreeOperation<T> queryOp) {
         return query(left, right, 1, queryOp);
     }
 
+    /**
+     * Auxiliary method to traverse the tree.
+     *
+     * @param left Lower bound for the lookup
+     * @param right Upper bound for the lookup
+     * @param ind Position of the current segment in the tree
+     * @param operation Operation used when combining values from different segments
+     * @return Empty if bounds are out of range, computed value otherwise
+     */
     private Optional<T> query(int left, int right, int ind, TreeOperation<T> operation) {
         final Segment<T> curr = this.tree[ind];
 
         if(left > curr.getUpperBound() || right < curr.getLowerBound())
             return Optional.empty();
+
+        propagate(ind);
 
         if(left <= curr.getLowerBound() && curr.getUpperBound() >= right)
             return Optional.of(curr.getValue());
@@ -157,11 +207,31 @@ public class SegmentTree<T> {
         return Optional.of(operation.accept(res1.get(), res2.get()));
     }
 
+    /**
+     * Propagtes the lazy values of the current segment and its children.
+     *
+     * @param ind Position of the current segment in the tree
+     */
+    private void propagate(int ind) {
+        final Segment<T> seg = this.tree[ind];
+        final int len = seg.getUpperBound() - seg.getLowerBound() + 1;
+
+        for(int i = 0; i < len; i++)
+            seg.integrate(this.operation);
+
+        if(seg.getLowerBound() != seg.getUpperBound()) {
+            this.tree[2 * ind].updateLazy(seg.getLazy(), this.operation);
+            this.tree[2 * ind +1].updateLazy(seg.getLazy(), this.operation);
+        }
+
+        seg.setLazy(null);
+    }
+
     public Segment<T>[] getLeaves() {
         return leaves;
     }
 
-    public void setOperation(TreeOperation<T> operation) {
-        this.operation = operation;
+    public int getHeight() {
+        return height;
     }
 }
