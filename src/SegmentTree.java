@@ -2,6 +2,7 @@ import exceptions.IllegalArraySizeException;
 import exceptions.IllegalIntervalException;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 public class SegmentTree<T> {
     private final int offset, height;
@@ -11,6 +12,7 @@ public class SegmentTree<T> {
 
     /**
      * Creates a new Segment Tree which performs changes using the given operation.
+     * Builds in O(n) time.
      *
      * @param left Global lower bound
      * @param right Global upper bound
@@ -24,6 +26,7 @@ public class SegmentTree<T> {
 
     /**
      * Creates a new Segment Tree which performs changes using the given operation.
+     * Builds in O(n) time.
      *
      * @param left Global lower bound
      * @param right Global upper bound
@@ -58,9 +61,9 @@ public class SegmentTree<T> {
      * Builds a new segment tree.
      *
      * @param leaves Values with which the according leaf is initialized
-     * @param ind Position of the current interval in the tree
-     * @param left Lower bound for current interval
-     * @param right Upper bound for current interval
+     * @param ind Position of the current segment in the tree
+     * @param left Lower bound of current segment
+     * @param right Upper bound of current segment
      * @return Value to be set in the parent node
      */
     private T build(final T[] leaves, int ind, int left, int right) {
@@ -74,15 +77,16 @@ public class SegmentTree<T> {
 
         final int mid = (left + right) / 2;
 
-        final T res1 = build(leaves, 2 * ind, left, mid);
-        final T res2 = build(leaves, 2 * ind + 1, mid + 1, right);
+        final T leftSubTr = build(leaves, 2 * ind, left, mid);
+        final T rightSubTr = build(leaves, 2 * ind + 1, mid + 1, right);
 
-        curr.setValue(operation.accept(res1, res2));
+        curr.setValue(operation.accept(leftSubTr, rightSubTr));
         return curr.getValue();
     }
 
     /**
      * Performs changes to a single leaf in the tree given the specified operation.
+     * Operates in O(log n) time.
      *
      * @param leaf Leaf to be changed
      * @param value Value to be passed down to the specified leaf node
@@ -96,7 +100,7 @@ public class SegmentTree<T> {
      *
      * @param leaf Leaf to be changed
      * @param value Value to be passed down to the specified leaf node
-     * @param ind Position of the current interval in the tree
+     * @param ind Position of the current segment in the tree
      */
     private void singleChg(int leaf, T value, int ind) {
         final Segment<T> curr = this.tree[ind];
@@ -110,6 +114,47 @@ public class SegmentTree<T> {
             singleChg(leaf, value, 2 * ind);
             singleChg(leaf, value, 2 * ind + 1);
         }
+    }
+
+    /**
+     * Queries values in a given range using default operation of the tree.
+     *
+     * @param left Lower bound for the lookup
+     * @param right Upper bound for the lookup
+     * @return Empty if bounds are out of range, computed value otherwise
+     */
+    public Optional<T> query(int left, int right) {
+        return query(left, right, 1, this.operation);
+    }
+
+    /**
+     * Queries values in a given range.
+     *
+     * @param left Lower bound for the lookup
+     * @param right Upper bound for the lookup
+     * @param queryOp Operation used when combining values from different segments.
+     * @return Empty if bounds are out of range, computed value otherwise
+     */
+    public Optional<T> query(int left, int right, TreeOperation<T> queryOp) {
+        return query(left, right, 1, queryOp);
+    }
+
+    private Optional<T> query(int left, int right, int ind, TreeOperation<T> operation) {
+        final Segment<T> curr = this.tree[ind];
+
+        if(left > curr.getUpperBound() || right < curr.getLowerBound())
+            return Optional.empty();
+
+        if(left <= curr.getLowerBound() && curr.getUpperBound() >= right)
+            return Optional.of(curr.getValue());
+
+        final Optional<T> res1 = query(left, right, 2 * ind, operation);
+        final Optional<T> res2 = query(left, right, 2 * ind + 1, operation);
+
+        if(res1.isEmpty()) return res2;
+        if(res2.isEmpty()) return res1;
+
+        return Optional.of(operation.accept(res1.get(), res2.get()));
     }
 
     public Segment<T>[] getLeaves() {
