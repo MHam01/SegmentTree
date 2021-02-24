@@ -7,8 +7,10 @@ import java.util.Optional;
 public class SegmentTree<T> {
     private final int offset, height;
     private final Segment<T>[] tree, leaves;
+    private final TreeOperation<T> operation;
 
-    private TreeOperation<T> operation;
+    //Can be used to speed up lazy propagation, should represent n * operation
+    private TreeOperation<T> propagateOp;
 
     /**
      * Creates a new Segment Tree which performs changes using the given operation.
@@ -208,7 +210,7 @@ public class SegmentTree<T> {
     }
 
     /**
-     * Propagtes the lazy values of the current segment and its children.
+     * Propagates the lazy values of the current segment and its children.
      *
      * @param ind Position of the current segment in the tree
      */
@@ -216,8 +218,10 @@ public class SegmentTree<T> {
         final Segment<T> seg = this.tree[ind];
         final int len = seg.getUpperBound() - seg.getLowerBound() + 1;
 
-        for(int i = 0; i < len; i++)
-            seg.integrate(this.operation);
+        if(this.propagateOp == null) {
+            for (int i = 0; i < len; i++)
+                seg.integrate(this.operation);
+        } else seg.integrate(this.propagateOp);
 
         if(seg.getLowerBound() != seg.getUpperBound()) {
             this.tree[2 * ind].updateLazy(seg.getLazy(), this.operation);
@@ -227,11 +231,37 @@ public class SegmentTree<T> {
         seg.setLazy(null);
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder segTree = new StringBuilder();
+        toString(0, 1, segTree);
+        return segTree.toString();
+    }
+
+    private void toString(int level, int ind, StringBuilder str) {
+        final Segment<T> curr = this.tree[ind];
+
+        if(level > 0) str.append('|').append("-".repeat(level));
+
+        str.append(' ').append(curr.toString()).append('\n');
+
+        if(curr.getLowerBound() != curr.getUpperBound()) {
+            toString(level + 1, 2 * ind, str);
+            toString(level + 1, 2 * ind + 1, str);
+        }
+    }
+
     public Segment<T>[] getLeaves() {
         return leaves;
     }
 
     public int getHeight() {
         return height;
+    }
+
+    public void setPropagateOp(TreeOperation<T> propagateOp) {
+        if(this.propagateOp == null) return;
+
+        this.propagateOp = propagateOp;
     }
 }
