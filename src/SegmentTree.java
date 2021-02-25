@@ -1,5 +1,7 @@
+import exceptions.FixedOperationException;
 import exceptions.IllegalArraySizeException;
 import exceptions.IllegalIntervalException;
+import operations.TreeOperation;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -9,7 +11,7 @@ public class SegmentTree<T> {
     private final Segment<T>[] tree, leaves;
     private final TreeOperation<T> operation;
 
-    //Can be used to speed up lazy propagation, should represent n * operation
+    //Can be used to speed up lazy propagation, should represent len(segment) * operation
     private TreeOperation<T> propagateOp;
 
     /**
@@ -37,7 +39,7 @@ public class SegmentTree<T> {
      */
     @SuppressWarnings("unchecked")
     public SegmentTree(int left, int right, T[] leaves, TreeOperation<T> operation) {
-        if(right > left) throw new IllegalIntervalException(left, right);
+        if(left > right) throw new IllegalIntervalException(left, right);
 
         final int segmLen = right - left + 1;
 
@@ -77,12 +79,14 @@ public class SegmentTree<T> {
             return curr.getValue();
         }
 
-        final int mid = (left + right) / 2;
+        int mid = (left + right) / 2;
+
+        if(mid < 0 || (left < 0 && mid == 0)) mid--;
 
         final T leftSubTr = build(leaves, 2 * ind, left, mid);
         final T rightSubTr = build(leaves, 2 * ind + 1, mid + 1, right);
 
-        curr.setValue(operation.accept(leftSubTr, rightSubTr));
+        curr.setValue(operation.accept(curr.getLowerBound(), curr.getUpperBound(), leftSubTr, rightSubTr));
         return curr.getValue();
     }
 
@@ -94,7 +98,19 @@ public class SegmentTree<T> {
      * @param value Value to be passed down to the specified leaf node
      */
     public void singleChg(int leaf, T value) {
-        singleChg(leaf + this.offset, value, 1);
+        singleChg(leaf, value, 1, this.operation);
+    }
+
+    /**
+     * Performs changes to a single leaf in the tree given the specified operation.
+     * Operates in O(log n) time.
+     *
+     * @param leaf Leaf to be changed
+     * @param value Value to be passed down to the specified leaf node
+     * @param operation Operation to be performed on change
+     */
+    public void singleChg(int leaf, T value, TreeOperation<T> operation) {
+        singleChg(leaf, value, 1, operation);
     }
 
     /**
@@ -103,18 +119,19 @@ public class SegmentTree<T> {
      * @param leaf Leaf to be changed
      * @param value Value to be passed down to the specified leaf node
      * @param ind Position of the current segment in the tree
+     * @param operation Operation to be performed on change
      */
-    private void singleChg(int leaf, T value, int ind) {
+    private void singleChg(int leaf, T value, int ind, TreeOperation<T> operation) {
         final Segment<T> curr = this.tree[ind];
 
         if(leaf < curr.getLowerBound() || leaf > curr.getUpperBound())
             return;
 
-        curr.setValue(this.operation.accept(curr.getValue(), value));
+        curr.setValue(operation.accept(curr.getLowerBound(), curr.getUpperBound(), curr.getValue(), value));
 
         if(curr.getLowerBound() != curr.getUpperBound()) {
-            singleChg(leaf, value, 2 * ind);
-            singleChg(leaf, value, 2 * ind + 1);
+            singleChg(leaf, value, 2 * ind, operation);
+            singleChg(leaf, value, 2 * ind + 1, operation);
         }
     }
 
@@ -127,7 +144,20 @@ public class SegmentTree<T> {
      * @param value Value to be passed down the tree to all leaf nodes in the range
      */
     public void rangeChg(int left, int right, T value) {
-        rangeChg(left, right, value, 1);
+        rangeChg(left, right, value, 1, this.operation);
+    }
+
+    /**
+     * Perform changes to a given range given the specified operation.
+     * Operates in O(log n) time.
+     *
+     * @param left Lower bound for the change
+     * @param right Upper bound for the change
+     * @param value Value to be passed down the tree to all leaf nodes in the range
+     * @param operation Operation to be performed on change
+     */
+    public void rangeChg(int left, int right, T value, TreeOperation<T> operation) {
+        rangeChg(left, right, value, 1, operation);
     }
 
     /**
@@ -137,21 +167,23 @@ public class SegmentTree<T> {
      * @param right Upper bound for the change
      * @param value Value to be passed down the tree to all leaf nodes in the range
      * @param ind Position of the current segment in the tree
+     * @param operation Operation to be performed on change
      */
-    private void rangeChg(int left, int right, T value, int ind) {
+    private void rangeChg(int left, int right, T value, int ind, TreeOperation<T> operation) {
         final Segment<T> curr = this.tree[ind];
 
+        propagate(ind);
         if(left > curr.getUpperBound() || curr.getLowerBound() > right)
             return;
 
         if(left <= curr.getLowerBound() && right >= curr.getUpperBound()) {
-            curr.updateLazy(value, this.operation);
+            curr.updateLazy(value, operation);
             propagate(ind);
         } else if(curr.getLowerBound() != curr.getUpperBound()) {
-            rangeChg(left, right, value, 2 * ind);
-            rangeChg(left, right, value, 2 * ind + 1);
+            rangeChg(left, right, value, 2 * ind, operation);
+            rangeChg(left, right, value, 2 * ind + 1, operation);
 
-            curr.setValue(this.operation.accept(this.tree[2 * ind].getValue(), this.tree[2 * ind + 1].getValue()));
+            curr.setValue(operation.accept(curr.getLowerBound(), curr.getUpperBound(), this.tree[2 * ind].getValue(), this.tree[2 * ind + 1].getValue()));
         }
     }
 
@@ -164,20 +196,7 @@ public class SegmentTree<T> {
      * @return Empty if bounds are out of range, computed value otherwise
      */
     public Optional<T> query(int left, int right) {
-        return query(left, right, 1, this.operation);
-    }
-
-    /**
-     * Queries values in a given range.
-     * Operates in O(log n) time.
-     *
-     * @param left Lower bound for the lookup
-     * @param right Upper bound for the lookup
-     * @param queryOp Operation used when combining values from different segments
-     * @return Empty if bounds are out of range, computed value otherwise
-     */
-    public Optional<T> query(int left, int right, TreeOperation<T> queryOp) {
-        return query(left, right, 1, queryOp);
+        return query(left, right, 1);
     }
 
     /**
@@ -186,27 +205,28 @@ public class SegmentTree<T> {
      * @param left Lower bound for the lookup
      * @param right Upper bound for the lookup
      * @param ind Position of the current segment in the tree
-     * @param operation Operation used when combining values from different segments
      * @return Empty if bounds are out of range, computed value otherwise
      */
-    private Optional<T> query(int left, int right, int ind, TreeOperation<T> operation) {
+    private Optional<T> query(int left, int right, int ind) {
+        if(ind >= this.tree.length) return Optional.empty();
+
         final Segment<T> curr = this.tree[ind];
 
-        if(left > curr.getUpperBound() || right < curr.getLowerBound())
+        if(curr == null || left > curr.getUpperBound() || right < curr.getLowerBound())
             return Optional.empty();
 
         propagate(ind);
 
-        if(left <= curr.getLowerBound() && curr.getUpperBound() >= right)
+        if(left <= curr.getLowerBound() && right >= curr.getUpperBound())
             return Optional.of(curr.getValue());
 
-        final Optional<T> res1 = query(left, right, 2 * ind, operation);
-        final Optional<T> res2 = query(left, right, 2 * ind + 1, operation);
+        final Optional<T> res1 = query(left, right, 2 * ind);
+        final Optional<T> res2 = query(left, right, 2 * ind + 1);
 
         if(res1.isEmpty()) return res2;
         if(res2.isEmpty()) return res1;
 
-        return Optional.of(operation.accept(res1.get(), res2.get()));
+        return Optional.of(this.operation.accept(curr.getLowerBound(), curr.getUpperBound(), res1.get(), res2.get()));
     }
 
     /**
@@ -234,16 +254,16 @@ public class SegmentTree<T> {
     @Override
     public String toString() {
         final StringBuilder segTree = new StringBuilder();
-        toString(0, 1, segTree);
+        toString(-1, 1, segTree);
         return segTree.toString();
     }
 
     private void toString(int level, int ind, StringBuilder str) {
         final Segment<T> curr = this.tree[ind];
 
-        if(level > 0) str.append('|').append("-".repeat(level));
+        if(level >= 0) str.append("  ".repeat(level)).append('|').append("-").append(' ');
 
-        str.append(' ').append(curr.toString()).append('\n');
+        str.append(curr.toString()).append('\n');
 
         if(curr.getLowerBound() != curr.getUpperBound()) {
             toString(level + 1, 2 * ind, str);
@@ -260,7 +280,7 @@ public class SegmentTree<T> {
     }
 
     public void setPropagateOp(TreeOperation<T> propagateOp) {
-        if(this.propagateOp == null) return;
+        if(this.propagateOp != null) throw new FixedOperationException();
 
         this.propagateOp = propagateOp;
     }

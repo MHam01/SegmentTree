@@ -1,3 +1,5 @@
+import operations.TreeOperation;
+
 public class Segment<T> {
     private final int left, right;
 
@@ -16,7 +18,7 @@ public class Segment<T> {
     protected void integrate(TreeOperation<T> operation) {
         if(this.lazy == null) return;
 
-        this.value = operation.accept(this.value, this.lazy);
+        this.value = operation.accept(this.left, this.right, this.value, this.lazy);
     }
 
     /**
@@ -32,12 +34,12 @@ public class Segment<T> {
             return;
         }
 
-        this.lazy = operation.accept(lazy, newLazy);
+        this.lazy = operation.accept(this.left, this.right, this.lazy, newLazy);
     }
 
     @Override
     public String toString() {
-        return String.format("{[%d; %d] -> %s * %s", this.left, this.right, this.value.toString(), this.lazy.toString());
+        return String.format("{[%d; %d] : %s * %s}", this.left, this.right, this.value, this.lazy);
     }
 
     public int getLowerBound() {
