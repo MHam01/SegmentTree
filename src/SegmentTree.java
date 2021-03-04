@@ -1,7 +1,7 @@
 import exceptions.FixedOperationException;
 import exceptions.IllegalArraySizeException;
 import exceptions.IllegalIntervalException;
-import operations.TreeOperation;
+import operation.TreeOperation;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -53,9 +53,9 @@ public class SegmentTree<T> {
         this.offset = left;
         this.operation = operation;
 
-        this.height = (int) Math.ceil(Math.log10(segmLen) / Math.log10(2));
+        this.height = (int) Math.ceil(Math.log10(segmLen) / Math.log10(2)) + 1;
 
-        this.tree = new Segment[(int) Math.pow(2, this.height + 1)];
+        this.tree = new Segment[(int) Math.pow(2, this.height)];
         this.leaves = new Segment[segmLen];
 
         build(leaves, 1, left, right);

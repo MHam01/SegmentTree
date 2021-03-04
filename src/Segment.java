@@ -1,4 +1,4 @@
-import operations.TreeOperation;
+import operation.TreeOperation;
 
 public class Segment<T> {
     private final int left, right;

@@ -1,4 +1,4 @@
-package operations;
+package operation;
 
 public interface TreeOperation<T> {
     /**
