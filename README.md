@@ -43,4 +43,4 @@ When doing changes on a certain range, for example adding 3 in range [-4; 1]
 ---|----|----|----|----|---|---|---|---|---|---
 0 | 3 | 8 | 3 | 3 | 3 | 3 | 0 | 0 | 0 | 0
 
-perform `rangeChg(-4, 1, 3` instead of doing a single change multiple times.
+perform `rangeChg(-4, 1, 3)` instead of doing a single change multiple times.
