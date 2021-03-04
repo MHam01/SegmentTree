@@ -28,7 +28,7 @@ propagation operation should resemble *len(Segment)* times the execution of the 
 multiply the new value with the length of the current segment and add that to the old value, which is exactly the
 same as performing a simpler + operation numerous times.
 ```java
-rangeSum.setPropagateOp((lowerB, upperB, oldVal, newVal) -> oldVal + (upperB - lowerB + 1) * lazyVal);
+rangeSum.setPropagateOp((lowerB, upperB, oldVal, lazyVal) -> oldVal + (upperB - lowerB + 1) * lazyVal);
 ```
   
 **3. Changing Values**  
